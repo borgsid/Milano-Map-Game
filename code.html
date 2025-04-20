@@ -168,7 +168,6 @@
         const defaultBuildingColor = '#aaa';
         const defaultBuildingOpacity = 0.7;
         const highlightBuildingOpacity = 0.9;
-        let highlightedBuildingId = null; // Variable to store the ID of the highlighted building
         let highlightedBuildingIds = [];
 
         // --- Initialization ---
@@ -262,7 +261,6 @@
                     try {
                         const geoData = JSON.parse(geoDataString);
                         console.log(`Navigating to: ${event.target.textContent}`, geoData);
-
                         if (highlightedBuildingIds.length > 0)
                             highlightedBuildingIds.forEach(x => {
                                 map.setFeatureState(
@@ -272,10 +270,8 @@
                             })
 
                         highlightedBuildingIds = [];
-
                         geoData.buildingIds.forEach(
                             (x) => {
-
                                 map.setFeatureState(
                                     { source: 'composite', sourceLayer: 'building', id: x },
                                     { highlighted: true }
@@ -283,17 +279,6 @@
                                 highlightedBuildingIds.push(x);
                             }
                         );
-
-                        // Remove existing highlight when navigating via sidebar
-                        if (highlightedBuildingId !== null) {
-                            map.setFeatureState(
-                                { source: 'composite', sourceLayer: 'building', id: highlightedBuildingId },
-                                { highlighted: false }
-                            );
-                            highlightedBuildingId = null;
-                            console.log('Highlight removed due to sidebar navigation.');
-                        }
-
                         map.flyTo({
                             center: geoData.coords,
                             zoom: geoData.zoom,
@@ -302,7 +287,6 @@
                             speed: 1.2,
                             curve: 1.4,
                             essential: true,
-                            // offset: [0, -150] // Example offset - push center down slightly to see POI better
                         });
                     } catch (e) {
                         console.error("Error parsing geoData or flying:", e);
@@ -310,60 +294,6 @@
                 }
             }
         });
-        map.on('click', (e) => {
-            const features = map.queryRenderedFeatures(e.point, {
-                layers: ['3d-buildings']
-            });
-            console.log(JSON.stringify(features.map(x => x.id)))
-        })
-        // --- Map Click Handler (Highlighting) ---
-        // map.on('click', (e) => {
-        //     // Check if the click was on the sidebar - if so, ignore map click
-        //     if (document.getElementById('sidebar').contains(e.originalEvent.target)) {
-        //         return;
-        //     }
-
-        //     const features = map.queryRenderedFeatures(e.point, {
-        //         layers: ['3d-buildings']
-        //     });
-        //     // Remove highlight from the previously selected building first
-        //     if (highlightedBuildingId !== null) {
-        //         // Check if map style and source are loaded before setting state
-        //         if (map.getSource('composite') && map.getLayer('3d-buildings')) {
-        //             map.setFeatureState(
-        //                 { source: 'composite', sourceLayer: 'building', id: highlightedBuildingId },
-        //                 { highlighted: false }
-        //             );
-        //         } else {
-        //             console.warn("Map source or layer not ready for removing highlight.");
-        //         }
-        //         highlightedBuildingId = null; // Reset tracked ID
-        //     }
-
-        //     // If a building was clicked, highlight it
-        //     if (features.length > 0) {
-        //         const clickedBuildingId = features[0].id;
-        //         if (clickedBuildingId) {
-        //             // Check if map style and source are loaded before setting state
-        //             if (map.getSource('composite') && map.getLayer('3d-buildings')) {
-        //                 map.setFeatureState(
-        //                     { source: 'composite', sourceLayer: 'building', id: clickedBuildingId },
-        //                     { highlighted: true }
-        //                 );
-        //                 highlightedBuildingId = clickedBuildingId; // Track the new highlighted ID
-        //                 console.log(`Highlighted building ID: ${highlightedBuildingId}`);
-        //             } else {
-        //                 console.warn("Map source or layer not ready for applying highlight.");
-        //             }
-        //         } else {
-        //             console.log('Clicked building feature has no ID.');
-        //         }
-        //     } else {
-        //         // console.log('Clicked empty space, highlight removed.'); // Logged implicitly by the removal logic above
-        //     }
-        // });
-
-
         // Update camera coordinates on map movement
         function updateCameraPosition() {
             // Use try-catch as getFreeCameraOptions might not be ready instantly
@@ -384,8 +314,6 @@
                 document.getElementById('camera-coordinates').textContent = "Camera data unavailable";
             }
         }
-
-
         // Update coordinates on initial load and all subsequent movements
         map.on('load', updateCameraPosition); // Call once loaded
         map.on('move', updateCameraPosition); // Call on every move
@@ -397,36 +325,7 @@
         // Optional: Log map errors
         map.on('error', (e) => {
             console.error('Mapbox error:', e.error?.message || e);
-            // Potentially display a user-friendly error message
-            // alert('A map error occurred. Please check the console for details.');
         });
-
-        // --- Slider Logic (Example - you'll need to adjust based on desired effect) ---
-        /*
-       const offsetSlider = document.getElementById('offset-slider');
-       const offsetValueSpan = document.getElementById('offset-value');
-
-       if (offsetSlider && offsetValueSpan) {
-           offsetValueSpan.textContent = offsetSlider.value; // Initial value
-
-           offsetSlider.addEventListener('input', (event) => {
-               const yOffset = parseInt(event.target.value, 10);
-               offsetValueSpan.textContent = yOffset;
-               // Option 1: Set global map offset (less common)
-               // map.setOffset([0, yOffset]);
-
-               // Option 2: Adjust flyTo offset dynamically (more complex)
-               // You would need to store the current target and re-flyTo with the new offset
-               // Or modify the camera directly - advanced usage
-               console.log("Slider changed, new Y offset value:", yOffset);
-               // Example: Re-center map with offset if needed
-               // map.panTo(map.getCenter(), { offset: [0, yOffset] });
-           });
-       } else {
-           console.warn("Offset slider elements not found.");
-       }
-       */
-
     </script>
 
 </body>
