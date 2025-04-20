@@ -8,13 +8,105 @@
 
     <!-- Mapbox GL JS CSS -->
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
-    <link href="main.css" rel="stylesheet" />
+    <!-- Assuming main.css contains the styles from the previous example or similar -->
+    <!-- If not, you might need to add styles for #app-container, #sidebar, #map etc. -->
+    <style>
+        /* Basic styles if main.css is missing */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        #app-container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        #sidebar {
+            width: 250px;
+            height: 100%;
+            background-color: #f4f4f4;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ccc;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        #sidebar h2 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        #locations-list {
+            list-style: none;
+        }
+
+        #locations-list li {
+            padding: 10px 5px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s ease;
+        }
+
+        #locations-list li:hover {
+            background-color: #e0e0e0;
+        }
+
+        #locations-list li:last-child {
+            border-bottom: none;
+        }
+
+        #map {
+            flex-grow: 1;
+            height: 100%;
+        }
+
+        #camera-coordinates {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 5;
+            white-space: pre;
+        }
+
+        #offset-slider-container {
+            position: absolute;
+            bottom: 20px;
+            left: 270px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 10;
+        }
+
+        /* Adjust slider container position if needed based on sidebar width */
+    </style>
+    <!-- Link to main.css if you have it -->
+    <!-- <link href="main.css" rel="stylesheet" /> -->
 </head>
 
 <body>
 
     <div id="app-container">
-        <div id="camera-coordinates"></div>
+        <div id="camera-coordinates">Loading...</div>
 
         <div id="sidebar">
             <h2>Milano Locations</h2>
@@ -23,47 +115,72 @@
             </ul>
         </div>
         <div id="map"></div>
+        <!-- Moved offset slider for clarity, though its JS isn't implemented here -->
+        <!-- <div id="offset-slider-container">
+            <label for="offset-slider">Zoom Offset: <span id="offset-value"></span></label>
+            <input type="range" id="offset-slider" min="-400" max="0" value="-200" step="10">
+        </div> -->
     </div>
-    <div id="offset-slider-container">
-        <label for="offset-slider">Zoom Offset: <span id="offset-value"></span></label>
-        <input type="range" id="offset-slider" min="-400" max="0" value="200" step="10">
-    </div>
+
     <!-- Dependencies -->
     <!-- three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
     <!-- Mapbox GL JS -->
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
-    <!-- Threebox GL -->
+    <!-- Threebox GL - Assuming getToken.js provides a 'tb' object or similar setup -->
+    <!-- You might need the actual threebox script if getToken doesn't load it -->
+    <script src="https://cdn.jsdelivr.net/gh/jscastro76/threebox-gl@latest/dist/threebox.min.js"
+        type="text/javascript"></script>
+    <!-- getToken.js - Make sure this defines getTokenKey() -->
     <script src="getToken.js"></script>
+
 
     <!-- Main Application Logic -->
     <script>
         // --- Configuration ---
         const initZoom = 15;
-        const maxZoom = 200;
-        mapboxgl.accessToken = getTokenKey();
+        // const maxZoom = 200; // maxZoom isn't typically set like this in mapbox init
+        if (typeof getTokenKey !== 'function') {
+            alert("Error: getTokenKey() function not found. Make sure getToken.js is loaded correctly and defines it.");
+            // Provide a default fallback token for basic functionality IF NEEDED FOR TESTING
+            // mapboxgl.accessToken = 'YOUR_FALLBACK_MAPBOX_ACCESS_TOKEN';
+        } else {
+            mapboxgl.accessToken = getTokenKey();
+        }
 
         // Define the locations with their coordinates [longitude, latitude]
         const locations = [
-            { name: "Piazza alla Scala", coords: [9.1898, 45.4672], zoom: 18 },
-            { name: "Casa degli Omenoni", coords: [9.1920, 45.4674], zoom: 19 },
-            { name: "Palazzo Belgioioso", coords: [9.1925, 45.4675], zoom: 18 },
-            { name: "Galleria Vittorio Emanuele II", coords: [9.1903, 45.4658], zoom: 17 },
-            { name: "Piazza Duomo", coords: [9.1909, 45.4642], zoom: 17 },
-            { name: "Piazza Cordusio", coords: [9.1864, 45.4654], zoom: 18 },
-            { name: "Piazza Affari (Borsa)", coords: [9.1832, 45.4650], zoom: 18 }
+            { name: "Piazza alla Scala", coords: [9.1898, 45.4672], zoom: 18, buildingIds: [6552704] },
+            { name: "Casa degli Omenoni", coords: [9.1920, 45.4674], zoom: 19, buildingIds: [207101070] },
+            { name: "Palazzo Belgioioso", coords: [9.1925, 45.4675], zoom: 18, buildingIds: [2747454] },
+            {
+                name: "Galleria Vittorio Emanuele II", coords: [9.1903, 45.4658], zoom: 17, buildingIds:
+                    [176511666, 176511666, 291181790, 291181790,
+                        291181789, 291181788, 291181790, 291181790, 291181787,
+                        18237336, 18237337, 18237336, 291181789, 18237335]
+            }, { name: "Piazza Duomo", coords: [9.1909, 45.4642], zoom: 17, buildingIds: [1112397663] },
+            { name: "Piazza Cordusio", coords: [9.1864, 45.4654], zoom: 18, buildingIds: [242710289] },
+            { name: "Piazza Affari (Borsa)", coords: [9.1832, 45.4650], zoom: 18, buildingIds: [22817835] }
         ];
+
+        // --- Highlight Configuration ---
+        const highlightColor = '#ffc107'; // Amber/Gold color for highlight
+        const defaultBuildingColor = '#aaa';
+        const defaultBuildingOpacity = 0.7;
+        const highlightBuildingOpacity = 0.9;
+        let highlightedBuildingId = null; // Variable to store the ID of the highlighted building
+        let highlightedBuildingIds = [];
 
         // --- Initialization ---
         const map = new mapboxgl.Map({
             container: 'map', // container ID
-            style: 'mapbox://styles/mapbox/dark-v11', // Choose a style (dark works well for 3D)
-            center: [9.19, 45.4642], // Initial center on Milan (Duomo)
-            zoom: 15, // Initial zoom level
-            pitch: 45, // Initial pitch (tilt) for 3D view
-            bearing: -10, // Initial bearing (rotation)
+            style: 'mapbox://styles/mapbox/dark-v11', // Choose a style
+            center: [9.1913, 45.4642], // Initial center on Milan (Duomo adjusted)
+            zoom: initZoom, // Use the constant
+            pitch: 45, // Initial pitch
+            bearing: -10, // Initial bearing
             antialias: true, // Improves rendering quality
-            offset: [0, 0]
+            // offset: [0, 0] // Offset is usually applied during flyTo, not globally
         });
 
         const locationsList = document.getElementById('locations-list');
@@ -72,8 +189,7 @@
         locations.forEach(location => {
             const listItem = document.createElement('li');
             listItem.textContent = location.name;
-            // Store coordinates directly on the element for easy access
-            listItem.dataset.geoData = JSON.stringify(location);
+            listItem.dataset.geoData = JSON.stringify(location); // Keep storing the whole object
             locationsList.appendChild(listItem);
         });
 
@@ -81,8 +197,7 @@
         map.on('style.load', () => {
             console.log('Map style loaded.');
 
-            // Add 3D Buildings Layer from Mapbox tileset
-            // Find the index of the first symbol layer in the map style
+            // Add 3D Buildings Layer
             const layers = map.getStyle().layers;
             let firstSymbolId;
             for (const layer of layers) {
@@ -91,65 +206,52 @@
                     break;
                 }
             }
-
             map.addLayer(
                 {
                     'id': '3d-buildings',
-                    'source': 'composite', // Built-in Mapbox source
+                    'source': 'composite',
                     'source-layer': 'building',
                     'filter': ['==', 'extrude', 'true'],
                     'type': 'fill-extrusion',
                     'minzoom': 13,
                     'paint': {
-                        'fill-extrusion-color': '#aaa',
-                        // Use an 'interpolate' expression to gradually increase heights
+                        // Keep the 'case' expression for color - THIS IS SUPPORTED
+                        'fill-extrusion-color': [
+                            'case',
+                            ['boolean', ['feature-state', 'highlighted'], false], // Check if 'highlighted' state is true
+                            highlightColor,       // Color when highlighted
+                            defaultBuildingColor  // Default color
+                        ],
                         'fill-extrusion-height': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            13, 0, // At zoom 13, height is 0
-                            15.05, ['get', 'height'] // At zoom 15.05 and above, use actual height
+                            'interpolate', ['linear'], ['zoom'],
+                            13, 0,
+                            15.05, ['get', 'height']
                         ],
                         'fill-extrusion-base': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            13, 0, // At zoom 13, base is 0
-                            15.05, ['get', 'min_height'] // At zoom 15.05 and above, use actual min_height
+                            'interpolate', ['linear'], ['zoom'],
+                            13, 0,
+                            15.05, ['get', 'min_height']
                         ],
-                        'fill-extrusion-opacity': 0.7
+                        // REMOVE the 'case' expression for opacity
+                        // SET a single, constant opacity value instead
+                        'fill-extrusion-opacity': defaultBuildingOpacity // Or choose a value like 0.75 or 0.8 if you prefer
                     }
                 },
-                firstSymbolId // Insert the layer below the first symbol layer (labels, POIs)
+                firstSymbolId // Insert below labels
             );
+            console.log('3D buildings layer added.');
 
             // --- Initialize Threebox ---
-            // Note: We aren't adding custom three.js objects in this example,
-            // but threebox setup is needed if you want to extend it later.
-            // We mainly use Mapbox's native 3D features here.
-            window.tb = new Threebox(
-                map,
-                map.getCanvas().getContext('webgl'),
-                {
-                    defaultLights: true,
-                    // realSunlight: true, // Optional: Simulate real sunlight based on time/location
-                }
-            );
-            console.log('Threebox initialized.');
+            try {
+                window.tb = new Threebox(
+                    map,
+                    map.getCanvas().getContext('webgl'),
+                    { defaultLights: true }
+                );
+                console.log('Threebox initialized.');
+            } catch (e) {
+            }
 
-            // You could add custom Three.js objects here using tb.add(...)
-            // Example (a simple cube marker - uncomment to test)
-            /*
-            locations.forEach(loc => {
-                 const geometry = new THREE.BoxGeometry( 20, 20, 50 ); // size in meters
-                 const material = new THREE.MeshPhongMaterial( {color: 0xff0000} );
-                 const cube = new THREE.Mesh( geometry, material );
-
-                 let marker = tb.Object3D({obj: cube, units:'meters'})
-                    .setCoords(loc.coords); // Set position using [lng, lat, alt]
-                 tb.add(marker);
-            });
-            */
         });
 
         // --- Sidebar Click Handler ---
@@ -161,41 +263,169 @@
                         const geoData = JSON.parse(geoDataString);
                         console.log(`Navigating to: ${event.target.textContent}`, geoData);
 
+                        if (highlightedBuildingIds.length > 0)
+                            highlightedBuildingIds.forEach(x => {
+                                map.setFeatureState(
+                                    { source: 'composite', sourceLayer: 'building', id: x },
+                                    { highlighted: false }
+                                );
+                            })
+
+                        highlightedBuildingIds = [];
+
+                        geoData.buildingIds.forEach(
+                            (x) => {
+
+                                map.setFeatureState(
+                                    { source: 'composite', sourceLayer: 'building', id: x },
+                                    { highlighted: true }
+                                );
+                                highlightedBuildingIds.push(x);
+                            }
+                        );
+
+                        // Remove existing highlight when navigating via sidebar
+                        if (highlightedBuildingId !== null) {
+                            map.setFeatureState(
+                                { source: 'composite', sourceLayer: 'building', id: highlightedBuildingId },
+                                { highlighted: false }
+                            );
+                            highlightedBuildingId = null;
+                            console.log('Highlight removed due to sidebar navigation.');
+                        }
+
                         map.flyTo({
                             center: geoData.coords,
-                            zoom: geoData.zoom, // Zoom in closer when navigating
-                            pitch: 45,  // Increase pitch for a better 3D view
-                            bearing: map.getBearing(), // Keep current bearing or set a specific one
-                            speed: 1.2, // Control flight speed
-                            curve: 1.4, // Control flight curve
-                            essential: true, // This animation is considered essential
-                            offset: [0, 0] // Center POI visually
+                            zoom: geoData.zoom,
+                            pitch: 45, // Maybe keep pitch consistent or adjust per location?
+                            bearing: map.getBearing(),
+                            speed: 1.2,
+                            curve: 1.4,
+                            essential: true,
+                            // offset: [0, -150] // Example offset - push center down slightly to see POI better
                         });
                     } catch (e) {
-                        console.error("Error parsing coordinates:", e);
+                        console.error("Error parsing geoData or flying:", e);
                     }
                 }
             }
         });
+        map.on('click', (e) => {
+            const features = map.queryRenderedFeatures(e.point, {
+                layers: ['3d-buildings']
+            });
+            console.log(JSON.stringify(features.map(x => x.id)))
+        })
+        // --- Map Click Handler (Highlighting) ---
+        // map.on('click', (e) => {
+        //     // Check if the click was on the sidebar - if so, ignore map click
+        //     if (document.getElementById('sidebar').contains(e.originalEvent.target)) {
+        //         return;
+        //     }
+
+        //     const features = map.queryRenderedFeatures(e.point, {
+        //         layers: ['3d-buildings']
+        //     });
+        //     // Remove highlight from the previously selected building first
+        //     if (highlightedBuildingId !== null) {
+        //         // Check if map style and source are loaded before setting state
+        //         if (map.getSource('composite') && map.getLayer('3d-buildings')) {
+        //             map.setFeatureState(
+        //                 { source: 'composite', sourceLayer: 'building', id: highlightedBuildingId },
+        //                 { highlighted: false }
+        //             );
+        //         } else {
+        //             console.warn("Map source or layer not ready for removing highlight.");
+        //         }
+        //         highlightedBuildingId = null; // Reset tracked ID
+        //     }
+
+        //     // If a building was clicked, highlight it
+        //     if (features.length > 0) {
+        //         const clickedBuildingId = features[0].id;
+        //         if (clickedBuildingId) {
+        //             // Check if map style and source are loaded before setting state
+        //             if (map.getSource('composite') && map.getLayer('3d-buildings')) {
+        //                 map.setFeatureState(
+        //                     { source: 'composite', sourceLayer: 'building', id: clickedBuildingId },
+        //                     { highlighted: true }
+        //                 );
+        //                 highlightedBuildingId = clickedBuildingId; // Track the new highlighted ID
+        //                 console.log(`Highlighted building ID: ${highlightedBuildingId}`);
+        //             } else {
+        //                 console.warn("Map source or layer not ready for applying highlight.");
+        //             }
+        //         } else {
+        //             console.log('Clicked building feature has no ID.');
+        //         }
+        //     } else {
+        //         // console.log('Clicked empty space, highlight removed.'); // Logged implicitly by the removal logic above
+        //     }
+        // });
+
+
         // Update camera coordinates on map movement
         function updateCameraPosition() {
-            const camera = map.getFreeCameraOptions();
-            const position = camera.position;
+            // Use try-catch as getFreeCameraOptions might not be ready instantly
+            try {
+                const camera = map.getFreeCameraOptions();
+                const position = camera.position; // This might be undefined if not in free camera mode
+                const center = map.getCenter();
+                const zoom = map.getZoom();
+                const pitch = map.getPitch();
+                const bearing = map.getBearing();
 
-            if (position) {
-                const lngLat = position.toLngLat();
+                // Display center coordinates and zoom, which are always available
                 document.getElementById('camera-coordinates').textContent =
-                    `Lon: ${lngLat.lng.toFixed(4)}\nLat: ${lngLat.lat.toFixed(4)}\nZoom:${Math.round(map.getZoom(), 1)}`;
+                    `Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}\nZoom: ${zoom.toFixed(1)}\nPitch: ${pitch.toFixed(1)}\nBearing: ${bearing.toFixed(1)}`;
+
+            } catch (e) {
+                console.warn("Could not get camera options:", e);
+                document.getElementById('camera-coordinates').textContent = "Camera data unavailable";
             }
         }
 
+
         // Update coordinates on initial load and all subsequent movements
-        map.on('load', updateCameraPosition);
-        map.on('move', updateCameraPosition);
+        map.on('load', updateCameraPosition); // Call once loaded
+        map.on('move', updateCameraPosition); // Call on every move
+        map.on('zoom', updateCameraPosition); // Call on zoom change
+        map.on('pitch', updateCameraPosition); // Call on pitch change
+        map.on('rotate', updateCameraPosition); // Call on bearing change
+
+
         // Optional: Log map errors
         map.on('error', (e) => {
             console.error('Mapbox error:', e.error?.message || e);
+            // Potentially display a user-friendly error message
+            // alert('A map error occurred. Please check the console for details.');
         });
+
+        // --- Slider Logic (Example - you'll need to adjust based on desired effect) ---
+        /*
+       const offsetSlider = document.getElementById('offset-slider');
+       const offsetValueSpan = document.getElementById('offset-value');
+
+       if (offsetSlider && offsetValueSpan) {
+           offsetValueSpan.textContent = offsetSlider.value; // Initial value
+
+           offsetSlider.addEventListener('input', (event) => {
+               const yOffset = parseInt(event.target.value, 10);
+               offsetValueSpan.textContent = yOffset;
+               // Option 1: Set global map offset (less common)
+               // map.setOffset([0, yOffset]);
+
+               // Option 2: Adjust flyTo offset dynamically (more complex)
+               // You would need to store the current target and re-flyTo with the new offset
+               // Or modify the camera directly - advanced usage
+               console.log("Slider changed, new Y offset value:", yOffset);
+               // Example: Re-center map with offset if needed
+               // map.panTo(map.getCenter(), { offset: [0, yOffset] });
+           });
+       } else {
+           console.warn("Offset slider elements not found.");
+       }
+       */
 
     </script>
 
