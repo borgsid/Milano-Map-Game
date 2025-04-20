@@ -1,0 +1,100 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    /* Prevent body scrollbars */
+    font-family: sans-serif;
+}
+
+#app-container {
+    display: flex;
+    height: 100%;
+    width: 100%;
+}
+
+#sidebar {
+    width: 250px;
+    height: 100%;
+    background-color: #f4f4f4;
+    padding: 20px;
+    overflow-y: auto;
+    /* Allow scrolling if list is long */
+    border-right: 1px solid #ccc;
+    flex-shrink: 0;
+    /* Prevent sidebar from shrinking */
+}
+
+#sidebar h2 {
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    color: #333;
+}
+
+#locations-list {
+    list-style: none;
+}
+
+#locations-list li {
+    padding: 10px 5px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s ease;
+}
+
+#locations-list li:hover {
+    background-color: #e0e0e0;
+}
+
+#locations-list li:last-child {
+    border-bottom: none;
+}
+
+#map {
+    flex-grow: 1;
+    /* Map takes remaining space */
+    height: 100%;
+}
+
+/* Make mapbox popup text selectable */
+.mapboxgl-popup-content {
+    user-select: text;
+    -moz-user-select: text;
+    -webkit-user-select: text;
+    -ms-user-select: text;
+}
+
+#camera-coordinates {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-family: monospace;
+    z-index: 1;
+}
+
+#offset-slider-container {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 6px;
+    color: #fff;
+
+    #offset-slider {
+        width: 200px;
+        margin-left: 10px;
+    }
+}

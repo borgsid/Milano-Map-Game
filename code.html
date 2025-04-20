@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Milan Map</title>
+
+    <!-- Mapbox GL JS CSS -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+    <link href="main.css" rel="stylesheet" />
+</head>
+
+<body>
+
+    <div id="app-container">
+        <div id="camera-coordinates"></div>
+
+        <div id="sidebar">
+            <h2>Milano Locations</h2>
+            <ul id="locations-list">
+                <!-- Locations will be populated by JavaScript -->
+            </ul>
+        </div>
+        <div id="map"></div>
+    </div>
+    <div id="offset-slider-container">
+        <label for="offset-slider">Zoom Offset: <span id="offset-value"></span></label>
+        <input type="range" id="offset-slider" min="-400" max="0" value="200" step="10">
+    </div>
+    <!-- Dependencies -->
+    <!-- three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r126/three.min.js"></script>
+    <!-- Mapbox GL JS -->
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+    <!-- Threebox GL -->
+    <script src="getToken.js"></script>
+
+    <!-- Main Application Logic -->
+    <script>
+        // --- Configuration ---
+        const initZoom = 15;
+        const maxZoom = 200;
+        mapboxgl.accessToken = getTokenKey();
+
+        // Define the locations with their coordinates [longitude, latitude]
+        const locations = [
+            { name: "Piazza alla Scala", coords: [9.1898, 45.4672], zoom: 18 },
+            { name: "Casa degli Omenoni", coords: [9.1920, 45.4674], zoom: 19 },
+            { name: "Palazzo Belgioioso", coords: [9.1925, 45.4675], zoom: 18 },
+            { name: "Galleria Vittorio Emanuele II", coords: [9.1903, 45.4658], zoom: 17 },
+            { name: "Piazza Duomo", coords: [9.1909, 45.4642], zoom: 17 },
+            { name: "Piazza Cordusio", coords: [9.1864, 45.4654], zoom: 18 },
+            { name: "Piazza Affari (Borsa)", coords: [9.1832, 45.4650], zoom: 18 }
+        ];
+
+        // --- Initialization ---
+        const map = new mapboxgl.Map({
+            container: 'map', // container ID
+            style: 'mapbox://styles/mapbox/dark-v11', // Choose a style (dark works well for 3D)
+            center: [9.19, 45.4642], // Initial center on Milan (Duomo)
+            zoom: 15, // Initial zoom level
+            pitch: 45, // Initial pitch (tilt) for 3D view
+            bearing: -10, // Initial bearing (rotation)
+            antialias: true, // Improves rendering quality
+            offset: [0, 0]
+        });
+
+        const locationsList = document.getElementById('locations-list');
+
+        // --- Populate Sidebar ---
+        locations.forEach(location => {
+            const listItem = document.createElement('li');
+            listItem.textContent = location.name;
+            // Store coordinates directly on the element for easy access
+            listItem.dataset.geoData = JSON.stringify(location);
+            locationsList.appendChild(listItem);
+        });
+
+        // --- Map Loaded Event ---
+        map.on('style.load', () => {
+            console.log('Map style loaded.');
+
+            // Add 3D Buildings Layer from Mapbox tileset
+            // Find the index of the first symbol layer in the map style
+            const layers = map.getStyle().layers;
+            let firstSymbolId;
+            for (const layer of layers) {
+                if (layer.type === 'symbol') {
+                    firstSymbolId = layer.id;
+                    break;
+                }
+            }
+
+            map.addLayer(
+                {
+                    'id': '3d-buildings',
+                    'source': 'composite', // Built-in Mapbox source
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 13,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+                        // Use an 'interpolate' expression to gradually increase heights
+                        'fill-extrusion-height': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            13, 0, // At zoom 13, height is 0
+                            15.05, ['get', 'height'] // At zoom 15.05 and above, use actual height
+                        ],
+                        'fill-extrusion-base': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            13, 0, // At zoom 13, base is 0
+                            15.05, ['get', 'min_height'] // At zoom 15.05 and above, use actual min_height
+                        ],
+                        'fill-extrusion-opacity': 0.7
+                    }
+                },
+                firstSymbolId // Insert the layer below the first symbol layer (labels, POIs)
+            );
+
+            // --- Initialize Threebox ---
+            // Note: We aren't adding custom three.js objects in this example,
+            // but threebox setup is needed if you want to extend it later.
+            // We mainly use Mapbox's native 3D features here.
+            window.tb = new Threebox(
+                map,
+                map.getCanvas().getContext('webgl'),
+                {
+                    defaultLights: true,
+                    // realSunlight: true, // Optional: Simulate real sunlight based on time/location
+                }
+            );
+            console.log('Threebox initialized.');
+
+            // You could add custom Three.js objects here using tb.add(...)
+            // Example (a simple cube marker - uncomment to test)
+            /*
+            locations.forEach(loc => {
+                 const geometry = new THREE.BoxGeometry( 20, 20, 50 ); // size in meters
+                 const material = new THREE.MeshPhongMaterial( {color: 0xff0000} );
+                 const cube = new THREE.Mesh( geometry, material );
+
+                 let marker = tb.Object3D({obj: cube, units:'meters'})
+                    .setCoords(loc.coords); // Set position using [lng, lat, alt]
+                 tb.add(marker);
+            });
+            */
+        });
+
+        // --- Sidebar Click Handler ---
+        locationsList.addEventListener('click', (event) => {
+            if (event.target && event.target.tagName === 'LI') {
+                const geoDataString = event.target.dataset.geoData;
+                if (geoDataString) {
+                    try {
+                        const geoData = JSON.parse(geoDataString);
+                        console.log(`Navigating to: ${event.target.textContent}`, geoData);
+
+                        map.flyTo({
+                            center: geoData.coords,
+                            zoom: geoData.zoom, // Zoom in closer when navigating
+                            pitch: 45,  // Increase pitch for a better 3D view
+                            bearing: map.getBearing(), // Keep current bearing or set a specific one
+                            speed: 1.2, // Control flight speed
+                            curve: 1.4, // Control flight curve
+                            essential: true, // This animation is considered essential
+                            offset: [0, 0] // Center POI visually
+                        });
+                    } catch (e) {
+                        console.error("Error parsing coordinates:", e);
+                    }
+                }
+            }
+        });
+        // Update camera coordinates on map movement
+        function updateCameraPosition() {
+            const camera = map.getFreeCameraOptions();
+            const position = camera.position;
+
+            if (position) {
+                const lngLat = position.toLngLat();
+                document.getElementById('camera-coordinates').textContent =
+                    `Lon: ${lngLat.lng.toFixed(4)}\nLat: ${lngLat.lat.toFixed(4)}\nZoom:${Math.round(map.getZoom(), 1)}`;
+            }
+        }
+
+        // Update coordinates on initial load and all subsequent movements
+        map.on('load', updateCameraPosition);
+        map.on('move', updateCameraPosition);
+        // Optional: Log map errors
+        map.on('error', (e) => {
+            console.error('Mapbox error:', e.error?.message || e);
+        });
+
+    </script>
+
+</body>
+
+</html>
