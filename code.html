@@ -115,11 +115,6 @@
             </ul>
         </div>
         <div id="map"></div>
-        <!-- Moved offset slider for clarity, though its JS isn't implemented here -->
-        <!-- <div id="offset-slider-container">
-            <label for="offset-slider">Zoom Offset: <span id="offset-value"></span></label>
-            <input type="range" id="offset-slider" min="-400" max="0" value="-200" step="10">
-        </div> -->
     </div>
 
     <!-- Dependencies -->
@@ -150,7 +145,7 @@
 
         // Define the locations with their coordinates [longitude, latitude]
         const locations = [
-            { name: "Piazza alla Scala", coords: [9.1898, 45.4672], zoom: 18, buildingIds: [6552704] },
+            { name: "Piazza alla Scala", coords: [9.1898, 45.4672], zoom: 18, buildingIds: [6552704, 26406964] },
             { name: "Casa degli Omenoni", coords: [9.1920, 45.4674], zoom: 19, buildingIds: [207101070] },
             { name: "Palazzo Belgioioso", coords: [9.1925, 45.4675], zoom: 18, buildingIds: [2747454] },
             {
@@ -167,6 +162,7 @@
         const highlightColor = '#ffc107'; // Amber/Gold color for highlight
         const defaultBuildingColor = '#aaa';
         const defaultBuildingOpacity = 0.7;
+        const plazaHighlightOpacity = 0.7;
         const highlightBuildingOpacity = 0.9;
         let highlightedBuildingIds = [];
 
@@ -205,6 +201,8 @@
                     break;
                 }
             }
+            const plazaSourceLayer = 'landuse';        // ASSUMPTION - VERIFY
+            const plazaClassFilterValue = 'plaza'; // ASSUMPTION - VERIFY
             map.addLayer(
                 {
                     'id': '3d-buildings',
@@ -320,8 +318,12 @@
         map.on('zoom', updateCameraPosition); // Call on zoom change
         map.on('pitch', updateCameraPosition); // Call on pitch change
         map.on('rotate', updateCameraPosition); // Call on bearing change
-
-
+        map.on('click', (e) => {
+            const features = map.queryRenderedFeatures(e.point, {
+                layers: ['3d-buildings']
+            });
+            console.log(JSON.stringify(features.map(x => x)))
+        })
         // Optional: Log map errors
         map.on('error', (e) => {
             console.error('Mapbox error:', e.error?.message || e);
